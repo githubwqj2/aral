@@ -2,7 +2,7 @@ import numpy as np
 import faiss
 from transformers import AutoTokenizer,AutoModel, AutoModelForMaskedLM
 
-tokenizer = AutoTokenizer.from_pretrained("peterchou/nezha-chinese-base")
+tokenizer = AutoTokenizer.from_pretrained("WangZeJun/simbert-base-chinese")
 simbertmodel=AutoModel.from_pretrained("WangZeJun/simbert-base-chinese")
 
 
