@@ -1,5 +1,13 @@
 import numpy as np
 import faiss
+from transformers import AutoTokenizer,AutoModel, AutoModelForMaskedLM
+
+tokenizer = AutoTokenizer.from_pretrained("peterchou/nezha-chinese-base")
+simbertmodel=AutoModel.from_pretrained("WangZeJun/simbert-base-chinese")
+
+
+
+print(simbertmodel)
 d = 64                                           # 向量维度
 nb = 100000                                      # index向量库的数据量
 nq = 10000                                       # 待检索query的数目
