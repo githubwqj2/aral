@@ -10,11 +10,11 @@ import torch.utils.data as Data
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, AutoModel
 
-simberttokenizer = AutoTokenizer.from_pretrained("WangZeJun/simbert-base-chinese")
-simbertencoder = AutoModel.from_pretrained("WangZeJun/simbert-base-chinese")
+simberttokenizer = AutoTokenizer.from_pretrained("./simbert")
+simbertencoder = AutoModel.from_pretrained("./simbert")
 
 dim, index_param = 768, 'Flat'
-batch_size = 8
+batch_size = 4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 simbertencoder.to(device)
 
@@ -78,7 +78,7 @@ def settingIndex(dim, index_param):
     else:
         quantizer = faiss.IndexFlatL2(dim)  # 欧式距离 判断落入那个分区
         # quantizer = faiss.IndexFlatIP(d)    # 点乘
-        nlist = 5  # 将数据集向量分为10个维诺空间
+        nlist = 2  # 将数据集向量分为10个维诺空间
         index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_L2)
         # index = faiss.index_factory(dim, index_param, faiss.METRIC_INNER_PRODUCT)
     index.verbose = True
