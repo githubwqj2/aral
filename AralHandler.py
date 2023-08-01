@@ -14,6 +14,10 @@ torch-model-archiver --model-name aral --version 1.0 --export-path ./ --serializ
 
 #torchserve --start --ncs --model-store ./ --models aral.mar
 #torchserve --stop
+
+# curl http://127.0.0.1:8081/models
+
+# curl http://127.0.0.1:8080/predictions/aral -T ./testdata
 class MyHandler(BaseHandler):
 
     def __init__(self):
@@ -42,8 +46,12 @@ class MyHandler(BaseHandler):
 
         #所有的文件，不管你直接引入的时候有多少层，打包之后 都到了model_dir的文件夹下面了,也就是没有多余的父文件夹了
         rawdata_index_saved = os.path.join(model_dir, 'rawdata_index_saved')
-        faiss_index_saved = os.path.join(model_dir, "faiss_index_saved")
-
+        faiss_index_saved = os.path.join(model_dir, 'faiss_index_saved')
+        print("-----------------------------------")
+        print(self.manifest)
+        print("-----------------------------------")
+        print(properties)
+        print("-----------------------------------")
 
         print("-----------------------------------")
         print(rawdata_index_saved)
@@ -58,6 +66,10 @@ class MyHandler(BaseHandler):
         dataf_index = pandas.read_json(rawdata_index_saved, lines=True)
         for index, row in dataf_index.iterrows():
             self.index_sentense[row[1]] = row[0]
+        print("-----------------------------------")
+        print(len(self.index_sentense))
+        print(os.path.exists(faiss_index_saved))
+        print("-----------------------------------")
         self.faissmodel = faiss.read_index(faiss_index_saved)
 
         self.model.to(self.device)
@@ -95,7 +107,7 @@ class MyHandler(BaseHandler):
         return l2_pooler
 
     def postprocess(self, data):
-        print()
+
         C, I = self.faissmodel.search(data, 10)
         print(C)
         print(I)
