@@ -1,5 +1,7 @@
 import os
 
+import faiss
+import pandas
 import torch
 from transformers import AutoTokenizer, AutoModel
 from ts.torch_handler.base_handler import BaseHandler
@@ -23,8 +25,14 @@ class MyHandler(BaseHandler):
         serialized_file = self.manifest["sentiment-dl-common-api-model"]["serializedFile"]
         model_pt_path = os.path.join(model_dir, serialized_file)
         setup_config_path = os.path.join(model_dir, "setup_config.json")
+        # 加载相关模型
         self.tokenizer = AutoTokenizer.from_pretrained(model_pt_path)
         self.model = AutoModel.from_pretrained(model_pt_path)
+        dataf_index = pandas.read_json('./faiss_index/rawdata_index_saved', lines=True)
+        for index, row in dataf_index.iterrows():
+            self.index_sentense[row[1]] = row[0]
+        self.faissmodel = faiss.read_index('./faiss_index/faiss_index_saved')
+
         self.model.to(self.device)
         self.model.eval()
         self.initialized = True
@@ -40,11 +48,12 @@ class MyHandler(BaseHandler):
             , torch.tensor(batch_encode['attention_mask'])
 
     def inference(self, data, *args, **kwargs):
-
         input_ids, token_type_ids, attention_mask = data
         output = self.model(input_ids.to(self.device), token_type_ids.to(self.device), attention_mask.to(self.device))
 
         return output['pooler_output'].detach().cpu().numpy()
 
     def postprocess(self, data):
-        return super().postprocess(data)
+        C, I = self.faissmodeli.search(data, 10)
+        dreturndata = self.index_sentense.get(I[0][0])
+        return dreturndata
