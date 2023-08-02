@@ -12,7 +12,7 @@ from transformers import AutoTokenizer, AutoModel
 
 simberttokenizer = AutoTokenizer.from_pretrained("./simbert")
 simbertencoder = AutoModel.from_pretrained("./simbert")
-
+simbertencoder.eval()
 dim, index_param = 768, 'Flat'
 batch_size = 4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -130,14 +130,17 @@ def get_simple_vec(batch_data, tokenizer, encoder):
     根据文本数据得到768维向量
     """
     input_ids, token_type_ids, attention_mask, _, _ = collateFun([(batch_data, [0])], tokenizer)
+    print(input_ids)
+    print(attention_mask)
+    print(token_type_ids)
     output = encoder(input_ids=input_ids.to(device), attention_mask=attention_mask.to(device),
                      token_type_ids=token_type_ids.to(device))
     return l2_norm(output['pooler_output'].detach().cpu().numpy())
 
 
 
-ids = settingIndex(dim, index_param)
-addIndex(train_dataloader, simbertencoder, ids)
+# ids = settingIndex(dim, index_param)
+# addIndex(train_dataloader, simbertencoder, ids)
 #进行组装，便于取数
 index_sentense = {}
 dataf_index = pandas.read_json('./faiss_index/rawdata_index_saved', lines=True)
@@ -147,6 +150,7 @@ ids=faiss.read_index('./faiss_index/faiss_index_saved')
 
 def search_vec(key_word, ids, tokenizer, topK=10):
     target_vecs = get_simple_vec(key_word, tokenizer, simbertencoder)
+    print(target_vecs)
     C, I = ids.search(target_vecs, topK)  # C 分数 I index
     index_sentense.get(I[0][0])
     return index_sentense.get(I[0][0])

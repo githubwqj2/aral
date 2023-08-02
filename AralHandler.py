@@ -40,7 +40,7 @@ class MyHandler(BaseHandler):
             if torch.cuda.is_available() and properties.get("gpu_id") is not None
             else "cpu"
         )
-
+        # self.device  = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         #所有的文件，不管你直接引入的时候有多少层，打包之后 都到了model_dir的文件夹下面了,也就是没有多余的父文件夹了
         rawdata_index_saved = os.path.join(model_dir, 'rawdata_index_saved')
         faiss_index_saved = os.path.join(model_dir, "faiss_index_saved")
@@ -56,6 +56,7 @@ class MyHandler(BaseHandler):
         self.index_sentense={}
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir) #tokenizer需要读取词汇表
         self.model = AutoModel.from_pretrained(model_dir) #也需要读取词汇表
+
         # id_sentense的建立
         dataf_index = pandas.read_json(rawdata_index_saved, lines=True)
         for index, row in dataf_index.iterrows():
@@ -94,9 +95,11 @@ class MyHandler(BaseHandler):
 
     def inference(self, data, *args, **kwargs):
         input_ids, token_type_ids, attention_mask = data
-        output = self.model(input_ids.to(self.device), token_type_ids.to(self.device), attention_mask.to(self.device))
+
+        output = self.model(input_ids=input_ids.to(self.device), token_type_ids=token_type_ids.to(self.device), attention_mask=attention_mask.to(self.device))
         #进行l2正则化
         l2_pooler=self.l2_norm(output['pooler_output'].detach().cpu().numpy())
+
         return l2_pooler
 
     def postprocess(self, data):
@@ -110,7 +113,7 @@ class MyHandler(BaseHandler):
     def l2_norm(self,vecs):
         return vecs / (vecs ** 2).sum(axis=1, keepdims=True) ** 0.5
 
-    def settingIndex(dim=768, index_param=None):
+    def settingIndex(self,dim=768, index_param=None):
         """
           设置faiss的index,到目前还没有添加数据的
           """
