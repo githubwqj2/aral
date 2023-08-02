@@ -14,10 +14,6 @@ torch-model-archiver --model-name aral --version 1.0 --export-path ./ --serializ
 
 #torchserve --start --ncs --model-store ./ --models aral.mar
 #torchserve --stop
-
-# curl http://127.0.0.1:8081/models
-
-# curl http://127.0.0.1:8080/predictions/aral -T ./testdata
 class MyHandler(BaseHandler):
 
     def __init__(self):
@@ -25,6 +21,7 @@ class MyHandler(BaseHandler):
         self.initialized = False
 
     def initialize(self, context):
+        dim, index_param = 768, 'Flat'
         self.manifest = context.manifest
         """ 这是manifest内容
         {'createdOn': '01/08/2023 14:30:46', 'runtime': 'python', 
@@ -43,15 +40,11 @@ class MyHandler(BaseHandler):
             if torch.cuda.is_available() and properties.get("gpu_id") is not None
             else "cpu"
         )
-
+        # self.device  = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         #所有的文件，不管你直接引入的时候有多少层，打包之后 都到了model_dir的文件夹下面了,也就是没有多余的父文件夹了
         rawdata_index_saved = os.path.join(model_dir, 'rawdata_index_saved')
-        faiss_index_saved = os.path.join(model_dir, 'faiss_index_saved')
-        print("-----------------------------------")
-        print(self.manifest)
-        print("-----------------------------------")
-        print(properties)
-        print("-----------------------------------")
+        faiss_index_saved = os.path.join(model_dir, "faiss_index_saved")
+
 
         print("-----------------------------------")
         print(rawdata_index_saved)
@@ -63,17 +56,18 @@ class MyHandler(BaseHandler):
         self.index_sentense={}
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir) #tokenizer需要读取词汇表
         self.model = AutoModel.from_pretrained(model_dir) #也需要读取词汇表
+
+        # id_sentense的建立
         dataf_index = pandas.read_json(rawdata_index_saved, lines=True)
         for index, row in dataf_index.iterrows():
             self.index_sentense[row[1]] = row[0]
-        print("-----------------------------------")
-        print(len(self.index_sentense))
-        print(os.path.exists(faiss_index_saved))
-        print("-----------------------------------")
+        #faiss的索引建立
+        ids = self.settingIndex(dim, index_param)
         self.faissmodel = faiss.read_index(faiss_index_saved)
-
+        #模型转为cuda
         self.model.to(self.device)
         self.model.eval()
+
         self.initialized = True
 
     def preprocess(self, requests):
@@ -101,13 +95,15 @@ class MyHandler(BaseHandler):
 
     def inference(self, data, *args, **kwargs):
         input_ids, token_type_ids, attention_mask = data
-        output = self.model(input_ids.to(self.device), token_type_ids.to(self.device), attention_mask.to(self.device))
+
+        output = self.model(input_ids=input_ids.to(self.device), token_type_ids=token_type_ids.to(self.device), attention_mask=attention_mask.to(self.device))
         #进行l2正则化
         l2_pooler=self.l2_norm(output['pooler_output'].detach().cpu().numpy())
+
         return l2_pooler
 
     def postprocess(self, data):
-
+        print()
         C, I = self.faissmodel.search(data, 10)
         print(C)
         print(I)
@@ -116,3 +112,21 @@ class MyHandler(BaseHandler):
 
     def l2_norm(self,vecs):
         return vecs / (vecs ** 2).sum(axis=1, keepdims=True) ** 0.5
+
+    def settingIndex(self,dim=768, index_param=None):
+        """
+          设置faiss的index,到目前还没有添加数据的
+          """
+        if index_param[0:4] == 'HNSW' and ',' not in index_param:
+            hnsw_num = int(index_param.split('HNSW')[-1])
+            print(f'Index维度为{dim}，HNSW参数为{hnsw_num}')
+            index = faiss.IndexHNSWFlat(dim, hnsw_num, faiss.METRIC_INNER_PRODUCT)
+        else:
+            quantizer = faiss.IndexFlatL2(dim)  # 欧式距离 判断落入那个分区
+            # quantizer = faiss.IndexFlatIP(d)    # 点乘
+            nlist = 2  # 将数据集向量分为10个维诺空间
+            index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_L2)
+            # index = faiss.index_factory(dim, index_param, faiss.METRIC_INNER_PRODUCT)
+        index.verbose = True
+        index.do_polysemous_training = False
+        return index
