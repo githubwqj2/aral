@@ -21,6 +21,7 @@ class MyHandler(BaseHandler):
         self.initialized = False
 
     def initialize(self, context):
+        dim, index_param = 768, 'Flat'
         self.manifest = context.manifest
         """ 这是manifest内容
         {'createdOn': '01/08/2023 14:30:46', 'runtime': 'python', 
@@ -55,13 +56,17 @@ class MyHandler(BaseHandler):
         self.index_sentense={}
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir) #tokenizer需要读取词汇表
         self.model = AutoModel.from_pretrained(model_dir) #也需要读取词汇表
+        # id_sentense的建立
         dataf_index = pandas.read_json(rawdata_index_saved, lines=True)
         for index, row in dataf_index.iterrows():
             self.index_sentense[row[1]] = row[0]
+        #faiss的索引建立
+        ids = self.settingIndex(dim, index_param)
         self.faissmodel = faiss.read_index(faiss_index_saved)
-
+        #模型转为cuda
         self.model.to(self.device)
         self.model.eval()
+
         self.initialized = True
 
     def preprocess(self, requests):
@@ -104,3 +109,21 @@ class MyHandler(BaseHandler):
 
     def l2_norm(self,vecs):
         return vecs / (vecs ** 2).sum(axis=1, keepdims=True) ** 0.5
+
+    def settingIndex(dim=768, index_param=None):
+        """
+          设置faiss的index,到目前还没有添加数据的
+          """
+        if index_param[0:4] == 'HNSW' and ',' not in index_param:
+            hnsw_num = int(index_param.split('HNSW')[-1])
+            print(f'Index维度为{dim}，HNSW参数为{hnsw_num}')
+            index = faiss.IndexHNSWFlat(dim, hnsw_num, faiss.METRIC_INNER_PRODUCT)
+        else:
+            quantizer = faiss.IndexFlatL2(dim)  # 欧式距离 判断落入那个分区
+            # quantizer = faiss.IndexFlatIP(d)    # 点乘
+            nlist = 2  # 将数据集向量分为10个维诺空间
+            index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_L2)
+            # index = faiss.index_factory(dim, index_param, faiss.METRIC_INNER_PRODUCT)
+        index.verbose = True
+        index.do_polysemous_training = False
+        return index
