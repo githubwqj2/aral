@@ -16,7 +16,7 @@ def intent_classifier(text):
             dieasestr=rwa.get("string")
             entities=set([_.get("word") for _ in rwa.get("entities",[])])
             returndict[dieasestr]=entities
-        returnarray= [(_, returndict.get(_)) for _ in text]
+        returnarray= [(_, returndict.get(_)) for _ in json.dumps(data)]
         return returnarray
 
     else:
