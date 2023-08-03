@@ -156,5 +156,8 @@ def search_vec(key_word, ids, tokenizer, topK=10):
     return index_sentense.get(I[0][0])
 
 
-key_word = '我这是前列腺还是肾有问题 婚前有过性交,经常,婚后房事时一次也就1分钟'
-print(search_vec(key_word, ids, simberttokenizer))
+
+if __name__ == '__main__':
+
+    search_word = '我这是前列腺还是肾有问题 婚前有过性交,经常,婚后房事时一次也就1分钟'
+    recall_doc=search_vec(search_word, ids, simberttokenizer)
