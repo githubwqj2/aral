@@ -7,9 +7,10 @@ import numpy as np
 import pandas
 import torch
 import torch.utils.data as Data
+import bert_qqmatch
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer, AutoModel
-
+from bilstm_crf_ner import get_item,term_match
 simberttokenizer = AutoTokenizer.from_pretrained("./simbert")
 simbertencoder = AutoModel.from_pretrained("./simbert")
 simbertencoder.eval()
@@ -130,9 +131,9 @@ def get_simple_vec(batch_data, tokenizer, encoder):
     根据文本数据得到768维向量
     """
     input_ids, token_type_ids, attention_mask, _, _ = collateFun([(batch_data, [0])], tokenizer)
-    print(input_ids)
-    print(attention_mask)
-    print(token_type_ids)
+    # print(input_ids)
+    # print(attention_mask)
+    # print(token_type_ids)
     output = encoder(input_ids=input_ids.to(device), attention_mask=attention_mask.to(device),
                      token_type_ids=token_type_ids.to(device))
     return l2_norm(output['pooler_output'].detach().cpu().numpy())
@@ -150,14 +151,22 @@ ids=faiss.read_index('./faiss_index/faiss_index_saved')
 
 def search_vec(key_word, ids, tokenizer, topK=10):
     target_vecs = get_simple_vec(key_word, tokenizer, simbertencoder)
-    print(target_vecs)
-    C, I = ids.search(target_vecs, topK)  # C 分数 I index
-    index_sentense.get(I[0][0])
-    return index_sentense.get(I[0][0])
+    # print(target_vecs)
+    D, I = ids.search(target_vecs, topK)  # C 分数 I index
+
+
+    return [index_sentense.get(_) for _ in I[0]]
 
 
 
 if __name__ == '__main__':
 
-    search_word = '我这是前列腺还是肾有问题 婚前有过性交,经常,婚后房事时一次也就1分钟'
+    search_word = '卵巢癌晚期用什么药较好? 卵巢癌晚期您好该用什么药最好'
     recall_doc=search_vec(search_word, ids, simberttokenizer)
+    array_item=get_item([search_word]+recall_doc)
+    querys,entity_item=zip(*array_item)
+
+    item_match_score=[term_match(entity_item[0],entity_item[1:])]
+    qq_match_score=bert_qqmatch.predicts(search_word, recall_doc)
+    synthesize_score=np.array(item_match_score).reshape((10, -1))*0.2 + qq_match_score*0.8
+    print(synthesize_score)

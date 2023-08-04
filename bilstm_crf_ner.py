@@ -3,7 +3,7 @@ import json
 import requests
 
 
-def intent_classifier(text):
+def get_item(text):
     url = 'http://127.0.0.1:60061/service/api/medical_ner'
     data = {"text_list":text}
     headers = {'Content-Type':'application/json;charset=utf8'}
@@ -13,16 +13,25 @@ def intent_classifier(text):
         rawdata=reponse['data']
         returndict={}
         for rwa in rawdata:
-            dieasestr=rwa.get("string")
+            dieasestr=rwa.get("seq")
             entities=set([_.get("word") for _ in rwa.get("entities",[])])
             returndict[dieasestr]=entities
-        returnarray= [(_, returndict.get(_)) for _ in json.dumps(data)]
+        returnarray= [(_, returndict.get(index)) for index,_ in enumerate(text)]
         return returnarray
 
     else:
         return -1
 
 
+
+def term_match(query,matchquery):
+    scorearr=[]
+    for  mq in matchquery:
+        if query  is None or mq is None:
+            scorearr.append(0)
+        else:
+            scorearr.append(len(set(query)&set(mq))*2 / (len(query)+len(mq)) )
+    return scorearr
 
 if __name__ == '__main__':
 
@@ -34,4 +43,5 @@ if __name__ == '__main__':
                     "吃完避孕药在同房会不会怀孕？ 我昨晚刚吃了避孕药之后就和老公同房了，您好医生，吃完避孕药在同房会不会怀孕？",
                     "男性精囊炎有什么症状？ 吃头一个月的时候我过一次房事，还是会偶尔的尿频尿急的，有时候还会出冷汗，血精还是有点的。"
                     ]
-    print(intent_classifier([question]+matchquestion2))
+    # print(get_item([question]+matchquestion2))
+    print(term_match(["甲亢","脑瘤"],[["精囊炎","甲亢","尿急"],["精囊炎","甲亢","脑震荡","避孕药"]]))

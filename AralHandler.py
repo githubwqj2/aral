@@ -105,10 +105,8 @@ class MyHandler(BaseHandler):
     def postprocess(self, data):
         print()
         C, I = self.faissmodel.search(data, 10)
-        print(C)
-        print(I)
-        dreturndata = self.index_sentense.get(I[0][0])
-        return [dreturndata]
+
+        return [self.index_sentense.get(_) for _ in I[0]]
 
     def l2_norm(self,vecs):
         return vecs / (vecs ** 2).sum(axis=1, keepdims=True) ** 0.5
