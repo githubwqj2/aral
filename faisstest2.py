@@ -169,4 +169,5 @@ if __name__ == '__main__':
     item_match_score=[term_match(entity_item[0],entity_item[1:])]
     qq_match_score=bert_qqmatch.predicts(search_word, recall_doc)
     synthesize_score=np.array(item_match_score).reshape((10, -1))*0.2 + qq_match_score*0.8
-    print(synthesize_score)
+    max_index=np.argmax(synthesize_score)
+    print(recall_doc[max_index])
